@@ -1,1 +1,1 @@
-web: python squashbot.py
+worker: python squashbot.py
