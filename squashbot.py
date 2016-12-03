@@ -33,6 +33,8 @@ if not TOKEN:
     log.critical("TELEGRAM_TOKEN not specified in environment variable.")
     sys.exit(-1)
 
+log.debug('Initializing bot.')
+
 bot = telepot.aio.DelegatorBot(TOKEN, [
     pave_event_space()(
         per_chat_id(), create_open, MessageCounter, timeout=10),
