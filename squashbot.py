@@ -4,9 +4,14 @@ import logging
 import asyncio
 import telepot
 import enum
+from delorean import parse, Delorean
+import arrow
 from telepot.aio.delegate import pave_event_space, per_chat_id, create_open
 from telepot.namedtuple import KeyboardButton, ReplyKeyboardMarkup, ForceReply
 
+
+MSK = 'Europe/Moscow'
+LOCALE = 'ru_RU'
 
 SQUASH_LOCATIONS = [
     'НСЦ',
@@ -41,7 +46,8 @@ GameInputStage = enum.Enum(
         'location',
         'first_player',
         'second_player',
-        'result'
+        'result',
+        'confirmation'
     ]
 )
 
@@ -119,9 +125,18 @@ class GameInputHandler(telepot.aio.helper.ChatHandler):
                     self._location = text
                     self._stage = GameInputStage.time
 
+                    now = arrow.now('Europe/Moscow')
+
+                    now = now.replace(
+                        minute=now.datetime.minute - now.datetime.minute % 5
+                    )
+                    times = [
+                        now.shift(minutes=-5*i).format("HH:mm") for i in range(6)
+                    ]
+
                     markup = ReplyKeyboardMarkup(keyboard=[
-                         TIMES[:3],
-                         TIMES[3:],
+                        times[:3],
+                        times[3:]
                      ])
 
                     await self.sender.sendMessage(
@@ -135,9 +150,85 @@ class GameInputHandler(telepot.aio.helper.ChatHandler):
                     )
             elif self._stage == GameInputStage.time:
                 text = text.strip()
+                try:
+                    self._time = parse(text, timezone=MSK)
+                except ValueError as ex:
+                    await self.sender.sendMessage(
+                        """Sorry, I cannot recognize time. Please post something like 15:45 or 24.10.2016 13:20."""
+                    )
+                else:
+                    self._stage = GameInputStage.first_player
+                    await self.sender.sendMessage(
+                        """Nice. The game is ended at {}.\nWho's the first player?""".format(self._time),
+                        reply_markup=ReplyKeyboardMarkup(keyboard=[
+                            [p] for p in PLAYERS
+                         ])
+                    )
+            elif self._stage == GameInputStage.first_player:
+                text = text.strip()
+                if text not in PLAYERS:
+                    await self.sender.sendMessage(
+                        """I don't know that man!!!"""
+                    )
+                else:
+                    self._stage = GameInputStage.second_player
+                    self._player1 = text
+                    await self.sender.sendMessage(
+                        """Well done. We like {}.\nWho was his mathup?""".format(self._player1),
+                        reply_markup=ReplyKeyboardMarkup(keyboard=[
+                            [p] for p in PLAYERS if p != self._player1
+                         ])
+                    )
+            elif self._stage == GameInputStage.second_player:
+                text = text.strip()
+                if (text not in PLAYERS) or (text == self._player1):
+                    await self.sender.sendMessage(
+                        """I don't know that man!!!"""
+                    )
+                else:
+                    self._stage = GameInputStage.result
+                    self._player2 = text
+                    await self.sender.sendMessage(
+                        """Well done.\nAnd the result of {} - {} is?""".format(self._player1, self._player2),
+                        reply_markup=ReplyKeyboardMarkup(keyboard=[
+                            GAME_RESULTS[:3],
+                            GAME_RESULTS[3:]
+                         ])
+                    )
+            elif self._stage == GameInputStage.result:
+                text = text.strip()
 
-
-
+                if (text not in GAME_RESULTS):
+                    await self.sender.sendMessage(
+                        """Strange result! Try something look like 3:1."""
+                    )
+                else:
+                    self._stage = GameInputStage.confirmation
+                    self._result = text
+                    await self.sender.sendMessage(
+                        """Let's check.\n{} {} {} - {} {}.""".format(
+                            self._location,
+                            self._time.datetime.strftime("%H:%M"),
+                            self._player1,
+                            self._player2,
+                            self._result
+                        ),
+                        reply_markup=ReplyKeyboardMarkup(keyboard=[
+                            ['OK'],
+                            ['/back']
+                         ])
+                    )
+            elif self._stage == GameInputStage.confirmation:
+                text = text.strip().lower()
+                if text != 'ok':
+                    await self.sender.sendMessage(
+                        """Please confirm the result!"""
+                    )
+                else:
+                    await self.sender.sendMessage(
+                        """Well done! We notify everyone about that game.!\nEnter new game with /newgame."""
+                    )
+                    self._stage = GameInputStage.start
 
 
 TOKEN = os.environ.get('TELEGRAM_TOKEN')  # get token from enviroment variable
