@@ -7,7 +7,7 @@ import enum
 from delorean import parse, Delorean
 import arrow
 from telepot.aio.delegate import pave_event_space, per_chat_id, create_open
-from telepot.namedtuple import KeyboardButton, ReplyKeyboardMarkup, ForceReply
+from telepot.namedtuple import KeyboardButton, ReplyKeyboardMarkup, ForceReply, ReplyKeyboardRemove
 
 
 MSK = 'Europe/Moscow'
@@ -67,6 +67,7 @@ log.addHandler(ch)
 
 class GameInputHandler(telepot.aio.helper.ChatHandler):
     def __init__(self, *args, **kwargs):
+        self._admin_chat = kwargs.pop('admin_chat', None)
         super(GameInputHandler, self).__init__(*args, **kwargs)
         self._stage = GameInputStage.start
         # TODO: Create game class
@@ -226,7 +227,19 @@ class GameInputHandler(telepot.aio.helper.ChatHandler):
                     )
                 else:
                     await self.sender.sendMessage(
-                        """Well done! We notify everyone about that game.!\nEnter new game with /newgame."""
+                        """Well done! We notify everyone about that game.!\nEnter new game with /newgame.""",
+                        reply_markup=ReplyKeyboardRemove()
+                    )
+                    await self.bot.sendMessage(
+                        self._admin_chat,
+                        """{} has just posted new results.\n{} {} {} - {} {}.""".format(
+                            "@" + msg['from']['username'],
+                            self._location,
+                            self._time.datetime.strftime("%H:%M"),
+                            self._player1,
+                            self._player2,
+                            self._result
+                        )
                     )
                     self._stage = GameInputStage.start
 
@@ -239,9 +252,17 @@ if not TOKEN:
 
 log.debug('Initializing bot.')
 
+admin_chat = int(os.environ.get('ADMIN_CHAT'))
+log.debug("Posting admin messages to group chat #{}.".format(admin_chat))
+
 bot = telepot.aio.DelegatorBot(TOKEN, [
     pave_event_space()(
-        per_chat_id(), create_open, GameInputHandler, timeout=20),
+        per_chat_id(),
+        create_open,
+        GameInputHandler,
+        timeout=20,
+        admin_chat=admin_chat
+    ),
 ])
 
 loop = asyncio.get_event_loop()
