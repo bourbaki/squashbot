@@ -81,6 +81,10 @@ class GameInputHandler(telepot.aio.helper.ChatHandler):
     async def on_chat_message(self, msg):
         content_type, chat_type, chat_id = telepot.glance(msg)
 
+        if chat_type == 'group':
+            await self.sender.sendMessage("Sorry, I work only im private...")
+            return
+
         log.debug(msg)
 
         if content_type != 'text':
