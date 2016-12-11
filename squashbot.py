@@ -123,6 +123,13 @@ class GameInputHandler(telepot.aio.helper.ChatHandler):
                     await self.sender.sendMessage(
                         "Ok. Full Reset! Start enter new game with /newgame"
                     )
+            elif command == '/back':
+                if self._stage != GameInputStage.start:
+                    pass
+                else:
+                    await self.sender.sendMessage(
+                        "Oh, we can't go back darling. We've only started... Do you mean /cancel?"
+                    )
         else:
             # Basic messages
             if self._stage == GameInputStage.location:
