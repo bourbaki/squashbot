@@ -128,7 +128,7 @@ class GameInputHandler(telepot.aio.helper.ChatHandler):
                     pass
                 else:
                     await self.sender.sendMessage(
-                        "Oh, we can't go back darling. We've only started... Do you mean /cancel?"
+                        "Oh, we can't go back darling. We've just started... Do you mean /cancel?"
                     )
         else:
             # Basic messages
@@ -244,7 +244,7 @@ class GameInputHandler(telepot.aio.helper.ChatHandler):
                     )
                     from_data = msg['from']
                     name =\
-                        "@{}".format(from_data) if 'username' in from_data else from_data['first_name']
+                        "@{}".format(from_data['username']) if 'username' in from_data else from_data['first_name']
                     await self.bot.sendMessage(
                         self._admin_chat,
                         """{} has just posted new results.\n{} {} {} - {} {}.""".format(
