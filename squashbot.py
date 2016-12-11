@@ -108,8 +108,8 @@ class GameInputHandler(telepot.aio.helper.ChatHandler):
             markup = ReplyKeyboardMarkup(keyboard=grouper(times, 3))
 
             await self.sender.sendMessage(
-                 'Courts are good at {}.\nWhat time have the game ended?'.format(text),
-                 reply_markup=markup,
+                 'Courts are good at {}.\nWhat time have the game ended?'.format(self._location),
+                 reply_markup=markup
             )
         elif self._stage == GameInputStage.first_player:
             await self.sender.sendMessage(
@@ -180,7 +180,7 @@ class GameInputHandler(telepot.aio.helper.ChatHandler):
                     )
             elif command == '/back':
                 if self._stage != GameInputStage.start:
-                    pass
+                    await self.move_to(GameInputStage(self._stage.value - 1))
                 else:
                     await self.sender.sendMessage(
                         "Oh, we can't go back darling. We've just started... Do you mean /cancel?"
@@ -234,8 +234,7 @@ class GameInputHandler(telepot.aio.helper.ChatHandler):
                     )
                 else:
                     self._result = text
-                    self.move_to(GameInputStage.confirmation)
-
+                    await self.move_to(GameInputStage.confirmation)
             elif self._stage == GameInputStage.confirmation:
                 text = text.strip().lower()
                 if text != 'ok':
