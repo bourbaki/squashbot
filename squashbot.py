@@ -35,9 +35,6 @@ PLAYERS = [
     'MARWAN ELSHORBAGY'
 ]
 
-TIMES = ['{:02d}:{:02d}'.format(h, m) for h in range(16, 17) for m in range(0, 60, 10)]
-
-
 GameInputStage = enum.Enum(
     value='GameInputStage',
     names=[
@@ -65,6 +62,20 @@ ch.setFormatter(f)
 log.addHandler(ch)
 
 
+def grouper(iterable, n):
+    """Return list of lists group by n elements."""
+    l = []
+    bf = []
+    for e in iterable:
+        bf.append(e)
+        if len(bf) == n:
+            l.append(bf)
+            bf = []
+    if len(bf) > 0:
+        l.append(bf)
+    return l
+
+
 class GameInputHandler(telepot.aio.helper.ChatHandler):
     def __init__(self, *args, **kwargs):
         self._admin_chat = kwargs.pop('admin_chat', None)
@@ -76,6 +87,60 @@ class GameInputHandler(telepot.aio.helper.ChatHandler):
         self._player1 = None
         self._player2 = None
         self._result = None
+
+    async def move_to(self, stage):
+        self._stage = stage
+        if self._stage == GameInputStage.location:
+            markup = ReplyKeyboardMarkup(keyboard=grouper(SQUASH_LOCATIONS, 3))
+            await self.sender.sendMessage(
+                'Hi fellow squasher! Please choose the location of the game.',
+                reply_markup=markup
+            )
+        elif self._stage == GameInputStage.time:
+            now = arrow.now('Europe/Moscow')
+            now = now.replace(
+                minute=now.datetime.minute - now.datetime.minute % 5
+            )
+            times = [
+                now.shift(minutes=-5*i).format("HH:mm") for i in range(6)
+            ]
+
+            markup = ReplyKeyboardMarkup(keyboard=grouper(times, 3))
+
+            await self.sender.sendMessage(
+                 'Courts are good at {}.\nWhat time have the game ended?'.format(text),
+                 reply_markup=markup,
+            )
+        elif self._stage == GameInputStage.first_player:
+            await self.sender.sendMessage(
+                """Nice. The game is ended at {}.\nWho's the first player?""".format(self._time),
+                reply_markup=ReplyKeyboardMarkup(keyboard=[
+                    [p] for p in PLAYERS
+                 ])
+            )
+        elif self._stage == GameInputStage.second_player:
+            await self.sender.sendMessage(
+                """Well done. We like {}.\nWho was his mathup?""".format(self._player1),
+                reply_markup=ReplyKeyboardMarkup(keyboard=[
+                    [p] for p in PLAYERS if p != self._player1
+                 ])
+            )
+        elif self._stage == GameInputStage.result:
+            await self.sender.sendMessage(
+                """Well done.\nAnd the result of {} - {} is?""".format(self._player1, self._player2),
+                reply_markup=ReplyKeyboardMarkup(keyboard=grouper(GAME_RESULTS, 3))
+            )
+        elif self._stage == GameInputStage.confirmation:
+            await self.sender.sendMessage(
+                """Let's check.\n{} {} {} - {} {}.""".format(
+                    self._location,
+                    self._time.datetime.strftime("%H:%M"),
+                    self._player1,
+                    self._player2,
+                    self._result
+                ),
+                reply_markup=ReplyKeyboardMarkup(keyboard=grouper(['OK', '/back'], 1))
+            )
 
 
     async def on_chat_message(self, msg):
@@ -98,17 +163,7 @@ class GameInputHandler(telepot.aio.helper.ChatHandler):
             command = text.strip().lower()
             if command == '/newgame':
                 if self._stage == GameInputStage.start:
-                    self._stage = GameInputStage.location
-
-                    markup = ReplyKeyboardMarkup(keyboard=[
-                         SQUASH_LOCATIONS[:3],
-                         SQUASH_LOCATIONS[3:],
-                     ])
-
-                    await self.sender.sendMessage(
-                        'Hi fellow squasher! Please choose the location of the game.',
-                        reply_markup=markup,
-                    )
+                    await self.move_to(GameInputStage.location)
                 else:
                     await self.sender.sendMessage(
                         'You are already in process of entering the results!'
@@ -136,26 +191,7 @@ class GameInputHandler(telepot.aio.helper.ChatHandler):
                 text = text.strip()
                 if text in SQUASH_LOCATIONS:
                     self._location = text
-                    self._stage = GameInputStage.time
-
-                    now = arrow.now('Europe/Moscow')
-
-                    now = now.replace(
-                        minute=now.datetime.minute - now.datetime.minute % 5
-                    )
-                    times = [
-                        now.shift(minutes=-5*i).format("HH:mm") for i in range(6)
-                    ]
-
-                    markup = ReplyKeyboardMarkup(keyboard=[
-                        times[:3],
-                        times[3:]
-                     ])
-
-                    await self.sender.sendMessage(
-                         'Courts are good at {}.\nWhat time have the game ended?'.format(text),
-                         reply_markup=markup,
-                    )
+                    await self.move_to(GameInputStage.time)
                 else:
                     await self.sender.sendMessage(
                         """Sorry, I don't know about this place.
@@ -170,13 +206,7 @@ class GameInputHandler(telepot.aio.helper.ChatHandler):
                         """Sorry, I cannot recognize time. Please post something like 15:45 or 24.10.2016 13:20."""
                     )
                 else:
-                    self._stage = GameInputStage.first_player
-                    await self.sender.sendMessage(
-                        """Nice. The game is ended at {}.\nWho's the first player?""".format(self._time),
-                        reply_markup=ReplyKeyboardMarkup(keyboard=[
-                            [p] for p in PLAYERS
-                         ])
-                    )
+                    await self.move_to(GameInputStage.first_player)
             elif self._stage == GameInputStage.first_player:
                 text = text.strip()
                 if text not in PLAYERS:
@@ -184,14 +214,8 @@ class GameInputHandler(telepot.aio.helper.ChatHandler):
                         """I don't know that man!!!"""
                     )
                 else:
-                    self._stage = GameInputStage.second_player
                     self._player1 = text
-                    await self.sender.sendMessage(
-                        """Well done. We like {}.\nWho was his mathup?""".format(self._player1),
-                        reply_markup=ReplyKeyboardMarkup(keyboard=[
-                            [p] for p in PLAYERS if p != self._player1
-                         ])
-                    )
+                    await self.move_to(GameInputStage.second_player)
             elif self._stage == GameInputStage.second_player:
                 text = text.strip()
                 if (text not in PLAYERS) or (text == self._player1):
@@ -199,15 +223,8 @@ class GameInputHandler(telepot.aio.helper.ChatHandler):
                         """I don't know that man!!!"""
                     )
                 else:
-                    self._stage = GameInputStage.result
                     self._player2 = text
-                    await self.sender.sendMessage(
-                        """Well done.\nAnd the result of {} - {} is?""".format(self._player1, self._player2),
-                        reply_markup=ReplyKeyboardMarkup(keyboard=[
-                            GAME_RESULTS[:3],
-                            GAME_RESULTS[3:]
-                         ])
-                    )
+                    await self.move_to(GameInputStage.result)
             elif self._stage == GameInputStage.result:
                 text = text.strip()
 
@@ -216,21 +233,9 @@ class GameInputHandler(telepot.aio.helper.ChatHandler):
                         """Strange result! Try something look like 3:1."""
                     )
                 else:
-                    self._stage = GameInputStage.confirmation
                     self._result = text
-                    await self.sender.sendMessage(
-                        """Let's check.\n{} {} {} - {} {}.""".format(
-                            self._location,
-                            self._time.datetime.strftime("%H:%M"),
-                            self._player1,
-                            self._player2,
-                            self._result
-                        ),
-                        reply_markup=ReplyKeyboardMarkup(keyboard=[
-                            ['OK'],
-                            ['/back']
-                         ])
-                    )
+                    self.move_to(GameInputStage.confirmation)
+
             elif self._stage == GameInputStage.confirmation:
                 text = text.strip().lower()
                 if text != 'ok':
