@@ -5,6 +5,8 @@ import asyncio
 import telepot
 import enum
 from delorean import parse, Delorean
+from names import PLAYERS
+from fuzzywuzzy import process
 import arrow
 from telepot.aio.delegate import pave_event_space, per_chat_id, create_open
 from telepot.namedtuple import KeyboardButton, ReplyKeyboardMarkup, ForceReply, ReplyKeyboardRemove
@@ -24,15 +26,6 @@ SQUASH_LOCATIONS = [
 GAME_RESULTS = [
     '3:0', '3:1', '3:2',
     '0:3', '1:3', '2:3'
-]
-
-PLAYERS = [
-    'MOHAMED ELSHORBAGY',
-    'KARIM ABDEL GAWAD',
-    'GREGORY GAULTIER',
-    'NICK MATTHEW',
-    'RAMY ASHOUR',
-    'MARWAN ELSHORBAGY'
 ]
 
 GameInputStage = enum.Enum(
@@ -88,7 +81,7 @@ class GameInputHandler(telepot.aio.helper.ChatHandler):
         self._player2 = None
         self._result = None
 
-    async def move_to(self, stage):
+    async def move_to(self, stage, keyboard=None):
         self._stage = stage
         if self._stage == GameInputStage.location:
             markup = ReplyKeyboardMarkup(keyboard=grouper(SQUASH_LOCATIONS, 3))
@@ -210,8 +203,12 @@ class GameInputHandler(telepot.aio.helper.ChatHandler):
             elif self._stage == GameInputStage.first_player:
                 text = text.strip()
                 if text not in PLAYERS:
+                    ps = process.extract(text, PLAYERS, limit=10)
                     await self.sender.sendMessage(
-                        """I don't know that man!!!"""
+                        """I don't know that man!!! I suggested some names for you below""",
+                        reply_markup=ReplyKeyboardMarkup(keyboard=[
+                            [p] for p, _ in ps if p != self._player1
+                         ])
                     )
                 else:
                     self._player1 = text
@@ -219,8 +216,12 @@ class GameInputHandler(telepot.aio.helper.ChatHandler):
             elif self._stage == GameInputStage.second_player:
                 text = text.strip()
                 if (text not in PLAYERS) or (text == self._player1):
+                    ps = process.extract(text, PLAYERS, limit=10)
                     await self.sender.sendMessage(
-                        """I don't know that man!!!"""
+                        """I don't know that man!!! I suggested some names for you below""",
+                        reply_markup=ReplyKeyboardMarkup(keyboard=[
+                            [p] for p, _ in ps if p != self._player1
+                         ])
                     )
                 else:
                     self._player2 = text
