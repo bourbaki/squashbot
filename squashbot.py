@@ -235,10 +235,13 @@ class GameInputHandler(telepot.aio.helper.ChatHandler):
                         """Well done! We notify everyone about that game.!\nEnter new game with /newgame.""",
                         reply_markup=ReplyKeyboardRemove()
                     )
+                    from_data = msg['from']
+                    name =\
+                        "@{}".format(from_data) if 'username' in from_data else from_data['first_name']
                     await self.bot.sendMessage(
                         self._admin_chat,
                         """{} has just posted new results.\n{} {} {} - {} {}.""".format(
-                            "@" + msg['from']['username'],
+                            name,
                             self._location,
                             self._time.datetime.strftime("%H:%M"),
                             self._player1,
