@@ -106,7 +106,9 @@ class GameInputHandler(telepot.aio.helper.ChatHandler):
             )
         elif self._stage == GameInputStage.first_player:
             await self.sender.sendMessage(
-                """Nice. The game is ended at {}.\nWho's the first player?""".format(self._time),
+                """Nice. The game is ended at {}.\nWho's the first player?""".format(
+                    self._time.format_datetime(format='short', locale='ru_RU')
+                ),
                 reply_markup=ReplyKeyboardMarkup(keyboard=[
                     [p] for p in PLAYERS
                  ])
@@ -125,9 +127,9 @@ class GameInputHandler(telepot.aio.helper.ChatHandler):
             )
         elif self._stage == GameInputStage.confirmation:
             await self.sender.sendMessage(
-                """Let's check.\n{} {} {} - {} {}.""".format(
+                """Let's check.\n{} {}\n{} - {} {}.""".format(
                     self._location,
-                    self._time.datetime.strftime("%H:%M"),
+                    self._time.format_datetime(format='short', locale='ru_RU'),
                     self._player1,
                     self._player2,
                     self._result
@@ -252,10 +254,10 @@ class GameInputHandler(telepot.aio.helper.ChatHandler):
                         "@{}".format(from_data['username']) if 'username' in from_data else from_data['first_name']
                     await self.bot.sendMessage(
                         self._admin_chat,
-                        """{} has just posted new results.\n{} {} {} - {} {}.""".format(
+                        """{} has just posted new results.\n{} {}\n{} - {} {}.""".format(
                             name,
                             self._location,
-                            self._time.datetime.strftime("%H:%M"),
+                            self._time.format_datetime(format='short', locale='ru_RU'),
                             self._player1,
                             self._player2,
                             self._result
