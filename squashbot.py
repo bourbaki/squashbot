@@ -265,6 +265,7 @@ class GameInputHandler(telepot.aio.helper.ChatHandler):
 
 
 TOKEN = os.environ.get('TELEGRAM_TOKEN')  # get token from enviroment variable
+TIMEOUT = int(os.environ.get('BOT_TIMEOUT', 60)) # session timeout for bot
 
 if not TOKEN:
     log.critical("TELEGRAM_TOKEN not specified in environment variable.")
@@ -280,7 +281,7 @@ bot = telepot.aio.DelegatorBot(TOKEN, [
         per_chat_id(),
         create_open,
         GameInputHandler,
-        timeout=20,
+        timeout=TIMEOUT,
         admin_chat=admin_chat
     ),
 ])
