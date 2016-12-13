@@ -1,1 +1,1 @@
-worker: python squashbot.py
+worker: python run_bot.py

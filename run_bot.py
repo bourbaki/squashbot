@@ -1,37 +1,26 @@
 import sys
 import os
+import operator
 import logging
 import asyncio
 import telepot
 import enum
-from delorean import parse, Delorean
-from names import PLAYERS
+from names import PLAYERS, GAME_RESULTS, SQUASH_LOCATIONS
 from fuzzywuzzy import process
-import arrow
 from telepot.aio.delegate import pave_event_space, per_chat_id, create_open
 from telepot.namedtuple import KeyboardButton, ReplyKeyboardMarkup, ForceReply, ReplyKeyboardRemove
-
+from datetime import datetime, timedelta
+import pendulum
+from squashbot.utils import previous_days, grouper, custom_xrange as time_range
 
 MSK = 'Europe/Moscow'
 LOCALE = 'ru_RU'
-
-SQUASH_LOCATIONS = [
-    'НСЦ',
-    'Звезда',
-    'Мультиспорт',
-    'Soul Rebel',
-    'Бережковская'
-]
-
-GAME_RESULTS = [
-    '3:0', '3:1', '3:2',
-    '0:3', '1:3', '2:3'
-]
 
 GameInputStage = enum.Enum(
     value='GameInputStage',
     names=[
         'start',
+        'date',
         'time',
         'location',
         'first_player',
@@ -55,18 +44,6 @@ ch.setFormatter(f)
 log.addHandler(ch)
 
 
-def grouper(iterable, n):
-    """Return list of lists group by n elements."""
-    l = []
-    bf = []
-    for e in iterable:
-        bf.append(e)
-        if len(bf) == n:
-            l.append(bf)
-            bf = []
-    if len(bf) > 0:
-        l.append(bf)
-    return l
 
 
 class GameInputHandler(telepot.aio.helper.ChatHandler):
@@ -90,24 +67,45 @@ class GameInputHandler(telepot.aio.helper.ChatHandler):
                 reply_markup=markup
             )
         elif self._stage == GameInputStage.time:
-            now = arrow.now('Europe/Moscow')
+            now = pendulum.now(tz=MSK)
+            # truncate to 5 minutes
             now = now.replace(
-                minute=now.datetime.minute - now.datetime.minute % 5
+                minute=now.minute - now.minute % 5
             )
-            times = [
-                now.shift(minutes=-5*i).format("HH:mm") for i in range(6)
+            time_strs = [
+                t.strftime('%H:%M')
+                for t in time_range(
+                    now.subtract(hours=2) - now,
+                    unit='minutes',
+                    step=10
+                )
             ]
-
-            markup = ReplyKeyboardMarkup(keyboard=grouper(times, 3))
-
+            markup = ReplyKeyboardMarkup(
+                keyboard=grouper(
+                    time_strs,
+                    n=3
+                )
+            )
             await self.sender.sendMessage(
-                 'Courts are good at {}.\nWhat time have the game ended?'.format(self._location),
-                 reply_markup=markup
+                'You played on {date}.\nWhat time have the game ended?'.format(
+                    date=self._time.format('LL', formatter='alternative')
+                ),
+                reply_markup=markup
+            )
+        elif self._stage == GameInputStage.date:
+            now = datetime.now()
+            dates = [
+                d.strftime('%d.%m.%y')
+                for d in previous_days(n=90)
+            ]
+            await self.sender.sendMessage(
+                 "Courts are good at {}.\nWhen game is played? Let's start with date.".format(self._location),
+                 reply_markup=ReplyKeyboardMarkup(keyboard=grouper(reversed(dates), 1))
             )
         elif self._stage == GameInputStage.first_player:
             await self.sender.sendMessage(
                 """Nice. The game is ended at {}.\nWho's the first player?""".format(
-                    self._time.format_datetime(format='short', locale='ru_RU')
+                    self._time.diff_for_humans()
                 ),
                 reply_markup=ReplyKeyboardMarkup(keyboard=[
                     [p] for p in PLAYERS
@@ -129,7 +127,7 @@ class GameInputHandler(telepot.aio.helper.ChatHandler):
             await self.sender.sendMessage(
                 """Let's check.\n{} {}\n{} - {} {}.""".format(
                     self._location,
-                    self._time.format_datetime(format='short', locale='ru_RU'),
+                    self._time.format('%d.%m.%y %H:%M'),
                     self._player1,
                     self._player2,
                     self._result
@@ -186,16 +184,29 @@ class GameInputHandler(telepot.aio.helper.ChatHandler):
                 text = text.strip()
                 if text in SQUASH_LOCATIONS:
                     self._location = text
-                    await self.move_to(GameInputStage.time)
+                    await self.move_to(GameInputStage.date)
                 else:
                     await self.sender.sendMessage(
                         """Sorry, I don't know about this place.
                         If this place is new, please contact administrators to add this court to our list."""
                     )
+            elif self._stage == GameInputStage.date:
+                text = text.strip()
+                try:
+                    self._time = pendulum.from_format(text, "%d.%m.%y", MSK)
+                    log.debug(self._time)
+                except ValueError as ex:
+                    await self.sender.sendMessage(
+                        """Sorry, I cannot recognize the date. You can input custom date in 12.12.12 format"""
+                    )
+                else:
+                    await self.move_to(GameInputStage.time)
             elif self._stage == GameInputStage.time:
                 text = text.strip()
                 try:
-                    self._time = parse(text, timezone=MSK)
+                    time = pendulum.from_format(text, "%H:%M", MSK)
+                    self._time = pendulum.combine(self._time, time.time())
+                    log.debug(self._time)
                 except ValueError as ex:
                     await self.sender.sendMessage(
                         """Sorry, I cannot recognize time. Please post something like 15:45 or 24.10.2016 13:20."""
@@ -254,10 +265,10 @@ class GameInputHandler(telepot.aio.helper.ChatHandler):
                         "@{}".format(from_data['username']) if 'username' in from_data else from_data['first_name']
                     await self.bot.sendMessage(
                         self._admin_chat,
-                        """{} has just posted new results.\n{} {}\n{} - {} {}.""".format(
+                        """#results\n{} has just posted new results.\n{} {}\n{} - {} {}.""".format(
                             name,
                             self._location,
-                            self._time.format_datetime(format='short', locale='ru_RU'),
+                            self._time.format('%d.%m.%y, %H:%M'),
                             self._player1,
                             self._player2,
                             self._result
