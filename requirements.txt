@@ -1,3 +1,4 @@
 fuzzywuzzy==0.14.0
 pendulum==0.7.0
+requests==2.12.3
 telepot==10.2
