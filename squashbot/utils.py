@@ -4,6 +4,11 @@ import pendulum
 import operator
 
 
+def markdown_link(title, url):
+    """Generates markdown link string."""
+    return "[{}]({})".format(title, url)
+
+
 def grouper(iterable, n):
     """Return list of lists group by n elements."""
     l = []
