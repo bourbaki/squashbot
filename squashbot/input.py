@@ -10,9 +10,15 @@ import pendulum
 from squashbot.utils import previous_days, grouper, markdown_link, custom_xrange as time_range
 from kortovnet import KortovNet
 from telepot.exception import TelegramError
+import gettext
+import os
 
 MSK = 'Europe/Moscow'
 LOCALE = 'ru_RU'
+
+localedir = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'locale')
+translate = gettext.translation('squashbot', localedir, ['ru'], fallback=True)
+_ = translate.gettext
 
 GameInputStage = enum.Enum(
     value='GameInputStage',
@@ -27,6 +33,7 @@ GameInputStage = enum.Enum(
         'confirmation'
     ]
 )
+
 
 class GameInputHandler(telepot.aio.helper.ChatHandler):
     """Class for handling chat input."""
@@ -56,13 +63,14 @@ class GameInputHandler(telepot.aio.helper.ChatHandler):
                     for p in self.api.get_locations()
                 }
             markup = ReplyKeyboardMarkup(
-                keyboard=grouper(self.locations.keys(), 1)
+                keyboard=grouper(sorted(self.locations.keys()), 1)
             )
             await self.sender.sendMessage(
-                'Hi fellow squasher! Please choose the location of the game.',
+                _('Hi fellow squasher! Please choose the location of the game.'),
                 reply_markup=markup
             )
         elif self._stage == GameInputStage.time:
+            # TODO: times when date is not today
             now = pendulum.now(tz=MSK)
             # truncate to 5 minutes
             now = now.replace(
@@ -83,7 +91,7 @@ class GameInputHandler(telepot.aio.helper.ChatHandler):
                 )
             )
             await self.sender.sendMessage(
-                'You played on {date}.\nWhat time have the game ended?'.format(
+                _('You played on {date}.\nWhat time have the game ended?').format(
                     date=self._time.format('LL', formatter='alternative')
                 ),
                 reply_markup=markup
@@ -95,7 +103,7 @@ class GameInputHandler(telepot.aio.helper.ChatHandler):
                 for d in previous_days(n=90)
             ]
             await self.sender.sendMessage(
-                 "Courts are good at {}.\nWhen game is played? Let's start with date.".format(self._location),
+                 _("Courts are good at {}.\nWhen game is played? Let's start with date.").format(self._location),
                  reply_markup=ReplyKeyboardMarkup(keyboard=grouper(reversed(dates), 1))
             )
         elif self._stage == GameInputStage.first_player:
@@ -105,28 +113,28 @@ class GameInputHandler(telepot.aio.helper.ChatHandler):
                     for p in self.api.get_players(self.league)
                 }
             await self.sender.sendMessage(
-                """Nice. The game is ended at {}.\nWho's the first player?""".format(
+                _("""Nice. The game is ended at {}.\nWho's the first player?""").format(
                     self._time.diff_for_humans()
                 ),
                 reply_markup=ReplyKeyboardMarkup(keyboard=[
-                    [p] for p in self.players.keys()
+                    [p] for p in sorted(self.players.keys())
                  ])
             )
         elif self._stage == GameInputStage.second_player:
             await self.sender.sendMessage(
-                """Well done. We like {}.\nWho was his mathup?""".format(self._player1),
+                _("""Well done. We like {}.\nWho was his mathup?""").format(self._player1),
                 reply_markup=ReplyKeyboardMarkup(keyboard=[
-                    [p] for p, pid in self.players.items() if p != self._player1
+                    [p] for p, pid in sorted(self.players.items()) if p != self._player1
                  ])
             )
         elif self._stage == GameInputStage.result:
             await self.sender.sendMessage(
-                """Well done.\nAnd the result of {} - {} is?""".format(self._player1, self._player2),
+                _("""Well done.\nAnd the result of {} - {} is?""").format(self._player1, self._player2),
                 reply_markup=ReplyKeyboardMarkup(keyboard=grouper(GAME_RESULTS, 3))
             )
         elif self._stage == GameInputStage.confirmation:
             await self.sender.sendMessage(
-                """Let's check.\n{} {}\n{} - {} {}.""".format(
+                _("""Let's check.\n{} {}\n{} - {} {}.""").format(
                     self._location,
                     self._time.format('%d.%m.%y %H:%M'),
                     self._player1,
@@ -150,14 +158,15 @@ class GameInputHandler(telepot.aio.helper.ChatHandler):
 
     async def on_chat_message(self, msg):
         """Handle chat message."""
+        logging.debug(msg)
         content_type, chat_type, chat_id = telepot.glance(msg)
 
         if chat_type == 'group':
-            await self.sender.sendMessage("Sorry, I work only in private chats.")
+            await self.sender.sendMessage(_("Sorry, I work only in private chats."))
             return
 
         if content_type != 'text':
-            await self.sender.sendMessage("Sorry, I don't understand only text.")
+            await self.sender.sendMessage(_("Sorry, I don't understand only text."))
             return
 
         user_id = msg['from']['id']
@@ -174,28 +183,28 @@ class GameInputHandler(telepot.aio.helper.ChatHandler):
                             await self.move_to(GameInputStage.location)
                     else:
                         await self.sender.sendMessage(
-                            'You are already in process of entering the results!'
-                    )
+                            _('You are already in process of entering the results!')
+                        )
                 else:
                     await self.sender.sendMessage(
-                        'Sorry, bro, but you are not a member of the league chat.'
+                        _('Sorry, bro, but you are not a member of the league chat.')
                     )
             elif command == '/cancel':
                 if self._stage == GameInputStage.start:
                     await self.sender.sendMessage(
-                        "Nothing to cancel. You don't even started"
+                        _("Nothing to cancel. You don't even started")
                     )
                 else:
                     self._stage = GameInputStage.start
                     await self.sender.sendMessage(
-                        "Ok. Full Reset! Start enter new game with /newgame"
+                        _("Ok. Full Reset! Start enter new game with /newgame")
                     )
             elif command == '/back':
                 if self._stage != GameInputStage.start:
                     await self.move_to(GameInputStage(self._stage.value - 1))
                 else:
                     await self.sender.sendMessage(
-                        "Oh, we can't go back darling. We've just started... Do you mean /cancel?"
+                        _("Oh, we can't go back darling. We've just started... Do you mean /cancel?")
                     )
         else:
             # Basic messages
@@ -206,38 +215,48 @@ class GameInputHandler(telepot.aio.helper.ChatHandler):
                     await self.move_to(GameInputStage.date)
                 else:
                     await self.sender.sendMessage(
-                        """Sorry, I don't know about this place.
-                        If this place is new, please contact administrators to add this court to our list."""
+                        _("""Sorry, I don't know about this place.
+                        If this place is new, please contact administrators to add this court to our list.""")
                     )
             elif self._stage == GameInputStage.date:
                 text = text.strip()
                 try:
-                    self._time = pendulum.from_format(text, "%d.%m.%y", MSK)
-                    logging.debug(self._time)
+                    time = pendulum.from_format(text, "%d.%m.%y", MSK)
                 except ValueError as ex:
                     await self.sender.sendMessage(
-                        """Sorry, I cannot recognize the date. You can input custom date in 12.12.12 format"""
+                        _("""Sorry, I cannot recognize the date. You can input custom date in 12.12.12 format""")
                     )
                 else:
-                    await self.move_to(GameInputStage.time)
+                    if time.is_future():
+                        await self.sender.sendMessage(
+                            _("""Looks like your game is in the future! No time travelers allowed!""")
+                        )
+                    else:
+                        self._time = time
+                        await self.move_to(GameInputStage.time)
             elif self._stage == GameInputStage.time:
                 text = text.strip()
                 try:
                     time = pendulum.from_format(text, "%H:%M", MSK)
-                    self._time = pendulum.combine(self._time, time.time())
-                    logging.debug(self._time)
                 except ValueError as ex:
                     await self.sender.sendMessage(
-                        """Sorry, I cannot recognize time. Please post something like 15:45 or 24.10.2016 13:20."""
+                        _("""Sorry, I cannot recognize time. Please post something like 15:45 or 24.10.2016 13:20.""")
                     )
                 else:
-                    await self.move_to(GameInputStage.first_player)
+                    time = pendulum.combine(self._time, time.time()).timezone_(MSK)
+                    if time.is_future():
+                        await self.sender.sendMessage(
+                            _("""Looks like your game is in the future! No time travelers allowed!""")
+                        )
+                    else:
+                        self._time = time
+                        await self.move_to(GameInputStage.first_player)
             elif self._stage == GameInputStage.first_player:
                 text = text.strip()
                 if text not in self.players:
                     ps = process.extract(text, self.players.keys(), limit=10)
                     await self.sender.sendMessage(
-                        """I don't know that man!!! I suggested some names for you below""",
+                        _("""I don't know that man!!! I suggested some names for you below"""),
                         reply_markup=ReplyKeyboardMarkup(keyboard=[
                             [p] for p, _ in ps if p != self._player1
                          ])
@@ -250,7 +269,7 @@ class GameInputHandler(telepot.aio.helper.ChatHandler):
                 if (text not in self.players) or (text == self._player1):
                     ps = process.extract(text, self.players.keys(), limit=10)
                     await self.sender.sendMessage(
-                        """I don't know that man!!! I suggested some names for you below""",
+                        _("""I don't know that man!!! I suggested some names for you below"""),
                         reply_markup=ReplyKeyboardMarkup(keyboard=[
                             [p] for p, _ in ps if p != self._player1
                          ])
@@ -263,7 +282,7 @@ class GameInputHandler(telepot.aio.helper.ChatHandler):
 
                 if (text not in GAME_RESULTS):
                     await self.sender.sendMessage(
-                        """Strange result! Try something look like 3:1."""
+                        _("""Strange result! Try something look like 3:1.""")
                     )
                 else:
                     self._result = text
@@ -272,11 +291,11 @@ class GameInputHandler(telepot.aio.helper.ChatHandler):
                 text = text.strip().lower()
                 if text != 'ok':
                     await self.sender.sendMessage(
-                        """Please confirm the result!"""
+                        _("""Please confirm the result!""")
                     )
                 else:
                     await self.sender.sendMessage(
-                        """Well done! We'll notify everyone about the game!\nEnter new game with /newgame.""",
+                        _("""Well done! We'll notify everyone about the game!\nEnter new game with /newgame."""),
                         reply_markup=ReplyKeyboardRemove()
                     )
                     from_data = msg['from']
@@ -298,7 +317,7 @@ class GameInputHandler(telepot.aio.helper.ChatHandler):
                     await self.bot.sendMessage(
                         self._admin_chat,
                         "#result\n" +
-                        """{} has just posted new results.\n{} {}\n{} - {}\n{}\t*{:+.2f}*""".format(
+                        _("""{} has just posted new results.\n{} {}\n{} - {}\n{}\t*{:+.2f}*""").format(
                             name,
                             self._location,
                             self._time.format('%d.%m.%y, %H:%M'),
