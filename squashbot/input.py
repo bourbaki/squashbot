@@ -16,8 +16,10 @@ import os
 MSK = 'Europe/Moscow'
 LOCALE = 'ru_RU'
 
+
+pendulum.set_locale('ru')
 localedir = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'locale')
-translate = gettext.translation('squashbot', localedir, ['ru'], fallback=True)
+translate = gettext.translation('squashbot', localedir, fallback=True)
 _ = translate.gettext
 
 GameInputStage = enum.Enum(
