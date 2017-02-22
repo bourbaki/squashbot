@@ -1,0 +1,187 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the PACKAGE package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: \n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2017-01-08 20:08+0300\n"
+"PO-Revision-Date: 2017-01-08 21:00+0300\n"
+"Language-Team: \n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"X-Generator: Poedit 1.8.11\n"
+"Last-Translator: \n"
+"Plural-Forms: nplurals=3; plural=(n%10==1 && n%100!=11 ? 0 : n%10>=2 && n"
+"%10<=4 && (n%100<10 || n%100>=20) ? 1 : 2);\n"
+"Language: ru\n"
+
+#: squashbot/input.py:69
+msgid "Hi fellow squasher! Please choose the location of the game."
+msgstr ""
+"Новая игра! Замечательно!\n"
+"Где играли?"
+
+#: squashbot/input.py:94
+#, python-brace-format
+msgid ""
+"You played on {date}.\n"
+"What time have the game ended?"
+msgstr ""
+"Здорово! Играли {date}\n"
+"Во сколько?"
+
+#: squashbot/input.py:106
+msgid ""
+"Courts are good at {}.\n"
+"When game is played? Let's start with date."
+msgstr ""
+"{}. Хороший выбор!\n"
+"Какого числа играли?"
+
+#: squashbot/input.py:116
+msgid ""
+"Nice. The game is ended at {}.\n"
+"Who's the first player?"
+msgstr ""
+"Супер! Играли {}.\n"
+"Настал час выбрать первого игрока!"
+
+#: squashbot/input.py:125
+msgid ""
+"Well done. We like {}.\n"
+"Who was his mathup?"
+msgstr ""
+"{} в красном углу ринга!\n"
+"Кто ему противостоит?"
+
+#: squashbot/input.py:132
+msgid ""
+"Well done.\n"
+"And the result of {} - {} is?"
+msgstr ""
+"{} - {}.\n"
+"Баталия на века! Какой счет?"
+
+#: squashbot/input.py:137
+msgid ""
+"Let's check.\n"
+"{} {}\n"
+"{} - {} {}."
+msgstr ""
+"Уже близко!\n"
+"Финальная проверка:\n"
+"{} {}\n"
+"{} - {} {}.\n"
+"Все ОК?"
+
+#: squashbot/input.py:165
+msgid "Sorry, I work only in private chats."
+msgstr "Пиши в личку!"
+
+#: squashbot/input.py:169
+msgid "Sorry, I don't understand only text."
+msgstr ""
+"Сорри, понимаю только текстовые сообщения. Кому-то было лень писать "
+"обработчики для аудио, видео и гифок. Да, @bourbaki?"
+
+#: squashbot/input.py:186
+msgid "You are already in process of entering the results!"
+msgstr ""
+"Ты же уже вводишь результаты.\n"
+"Если хочешь отменить текущий ввод — /cancel"
+
+#: squashbot/input.py:190
+msgid "Sorry, bro, but you are not a member of the league chat."
+msgstr ""
+"Вынужден огорчить. Не могу найти тебя в чате лиги и разрешить тебе вводить "
+"результаты.\n"
+"Предполагаю, ты знаешь, к кому обратиться, чтобы тебя добавили в чат."
+
+#: squashbot/input.py:195
+msgid "Nothing to cancel. You don't even started"
+msgstr "Чтобы что-то отменить, надо начать что-то делать."
+
+#: squashbot/input.py:200
+msgid "Ok. Full Reset! Start enter new game with /newgame"
+msgstr ""
+"Как скажешь. Начнем все сначала.\n"
+"Чтобы снова начать ввод — /newgame."
+
+#: squashbot/input.py:207
+msgid ""
+"Oh, we can't go back darling. We've just started... Do you mean /cancel?"
+msgstr "Мы только начали! Если хочешь отменить ввод — /cancel."
+
+#: squashbot/input.py:218
+msgid ""
+"Sorry, I don't know about this place.\n"
+"                        If this place is new, please contact administrators "
+"to add this court to our list."
+msgstr ""
+"Это где? Впервые слышу!\n"
+"Уверен, что твоего корта нет в списке?"
+
+#: squashbot/input.py:227
+msgid ""
+"Sorry, I cannot recognize the date. You can input custom date in 12.12.12 "
+"format"
+msgstr ""
+"Не очень похоже на дату.\n"
+"Попробуй что-нибудь похожее на 12.10.16"
+
+#: squashbot/input.py:232 squashbot/input.py:249
+msgid "Looks like your game is in the future! No time travelers allowed!"
+msgstr ""
+"Ты из будущего? Тогда записывайся в Лигу Путешественников во времени!\n"
+"В другом случае постарайся выбрать дату из прошлого."
+
+#: squashbot/input.py:243
+msgid ""
+"Sorry, I cannot recognize time. Please post something like 15:45 or "
+"24.10.2016 13:20."
+msgstr ""
+"Странное время.\n"
+"Попробуй что-нибудь похожее на 15:45 ."
+
+#: squashbot/input.py:259 squashbot/input.py:272
+msgid "I don't know that man!!! I suggested some names for you below"
+msgstr ""
+"Кто это такой? В списке лиги таких нет.\n"
+"Точно нет в списке? Если действительно нет, обратись к админам, и они "
+"добавят нового сквошиста!"
+
+#: squashbot/input.py:285
+msgid "Strange result! Try something look like 3:1."
+msgstr ""
+"Странный результат!\n"
+"В лиге мы играем до трех побед. \n"
+"Попробуй что-нибудь похожее на 3:1."
+
+#: squashbot/input.py:294
+msgid "Please confirm the result!"
+msgstr "Нужно подтвердить результат!"
+
+#: squashbot/input.py:298
+msgid ""
+"Well done! We'll notify everyone about the game!\n"
+"Enter new game with /newgame."
+msgstr ""
+"Ура! Игра зачтена!\n"
+"В общий чат Лиги придет оповещение с результатом и изменениями в рейтинге!\n"
+"Удачи!"
+
+#: squashbot/input.py:320
+msgid ""
+"{} has just posted new results.\n"
+"{} {}\n"
+"{} - {}\n"
+"{}\t*{:+.2f}*"
+msgstr ""
+"{} опубликовал новые результаты.\n"
+"{} {}\n"
+"{} - {}\n"
+"{}\t*{:+.2f}*"
