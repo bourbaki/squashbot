@@ -15,6 +15,7 @@ import os
 
 MSK = 'Europe/Moscow'
 LOCALE = 'ru_RU'
+CHAT_MEMBERS = ['left_chat_member', 'new_chat_member']
 
 
 pendulum.set_locale('ru')
@@ -163,8 +164,11 @@ class GameInputHandler(telepot.aio.helper.ChatHandler):
         logging.debug(msg)
         content_type, chat_type, chat_id = telepot.glance(msg)
 
+        logging.debug(content_type)
+
         if chat_type == 'group':
-            await self.sender.sendMessage(_("Sorry, I work only in private chats."))
+            if content_type not in CHAT_MEMBERS:
+                await self.sender.sendMessage(_("Sorry, I work only in private chats."))
             return
 
         if content_type != 'text':
