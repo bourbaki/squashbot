@@ -5,14 +5,14 @@ import requests as reqs
 class KortovNet(object):
     """docstring for KortovNet."""
 
-    def __init__(self, host="http://kortov.net/api/v0"):
+    def __init__(self, host="http://msliga.ru/api/v0"):
         """Init."""
         super(KortovNet, self).__init__()
         self.host = host
 
     def link_for_player(self, league, player):
         """Generate link for players page in the league."""
-        return "http://kortov.net/competitors/{}/leagues/{}/".format(player, league)
+        return "http://msliga.ru/competitors/{}/leagues/{}/".format(player, league)
 
     def get_leagues(self):
         """Return list of active leagues."""
