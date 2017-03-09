@@ -319,7 +319,7 @@ class GameInputHandler(telepot.aio.helper.ChatHandler):
                     await self.bot.sendMessage(
                         self._admin_chat,
                         "#result\n" +
-                        _("""{} has just posted new results.\n{} {}\n{} - {}\n{}\t*{:+.2f}*""").format(
+                        _("""{} has just posted new results.\n{} {}\n{} - {}\n{}""").format(
                             name,
                             self._location,
                             self._time.format('%d.%m.%y, %H:%M'),
@@ -331,8 +331,7 @@ class GameInputHandler(telepot.aio.helper.ChatHandler):
                                 title=self._player2,
                                 url=self.api.link_for_player(self.league, self.players[self._player2])
                             ),
-                            self._result,
-                            result['rating_delta']
+                            self._result
                         ),
                         parse_mode='Markdown'
                     )
