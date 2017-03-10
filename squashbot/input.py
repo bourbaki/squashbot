@@ -73,20 +73,27 @@ class GameInputHandler(telepot.aio.helper.ChatHandler):
                 reply_markup=markup
             )
         elif self._stage == GameInputStage.time:
-            # TODO: times when date is not today
-            now = pendulum.now(tz=MSK)
-            # truncate to 5 minutes
-            now = now.replace(
-                minute=now.minute - now.minute % 5
-            )
-            time_strs = [
-                t.strftime('%H:%M')
-                for t in time_range(
-                    now.subtract(hours=2) - now,
-                    unit='minutes',
-                    step=10
+            time_strs = []
+            if self._time.is_today():
+                now = pendulum.now(tz=MSK)
+                # truncate to 5 minutes
+                now = now.replace(
+                    minute=now.minute - now.minute % 5
                 )
-            ]
+                time_strs = [
+                    t.strftime('%H:%M')
+                    for t in time_range(
+                        now.subtract(hours=2) - now,
+                        unit='minutes',
+                        step=10
+                    )
+                ]
+            else:
+                period = self._time.end_of('day') - self._time
+                time_strs = [
+                    t.strftime('%H:%M')
+                    for t in period.range('minutes', 30)
+                ]
             markup = ReplyKeyboardMarkup(
                 keyboard=grouper(
                     time_strs,
