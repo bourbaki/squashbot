@@ -179,7 +179,8 @@ class GameInputHandler(telepot.aio.helper.ChatHandler):
             return
 
         if content_type != 'text':
-            await self.sender.sendMessage(_("Sorry, I don't understand only text."))
+            if content_type not in CHAT_MEMBERS:
+                await self.sender.sendMessage(_("Sorry, I don't understand only text."))
             return
 
         user_id = msg['from']['id']
