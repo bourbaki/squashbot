@@ -164,7 +164,7 @@ class GameInputHandler(telepot.aio.helper.ChatHandler):
         except TelegramError as ex:
             logging.exception(ex)
             return False
-        return res['status'] in ('creator', 'administrator', 'member')
+        return (res['status'] in ('creator', 'administrator', 'member')) or (res['status'] == 'left')
 
     async def on_chat_message(self, msg):
         """Handle chat message."""
