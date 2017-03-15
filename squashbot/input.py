@@ -173,7 +173,7 @@ class GameInputHandler(telepot.aio.helper.ChatHandler):
 
         logging.debug(content_type)
 
-        if chat_type == 'group':
+        if chat_type in ['group', 'supergroup']:
             if content_type not in CHAT_MEMBERS:
                 await self.sender.sendMessage(_("Sorry, I work only in private chats."))
             return
