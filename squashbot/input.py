@@ -119,7 +119,7 @@ class GameInputHandler(telepot.aio.helper.ChatHandler):
         elif self._stage == GameInputStage.first_player:
             if not self.players:
                 self.players = {
-                    "{} {}".format(p['last_name'], p['first_name']): p['id']
+                    "{} {}".format(p['last_name'].strip(), p['first_name'].strip()): p['id']
                     for p in self.api.get_players(self.league)
                 }
             await self.sender.sendMessage(
@@ -173,7 +173,7 @@ class GameInputHandler(telepot.aio.helper.ChatHandler):
 
         logging.debug(content_type)
 
-        if chat_type in ['group', 'supergroup']:
+        if chat_type != 'private':
             if content_type not in CHAT_MEMBERS:
                 await self.sender.sendMessage(_("Sorry, I work only in private chats."))
             return
