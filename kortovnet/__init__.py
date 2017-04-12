@@ -5,10 +5,11 @@ import requests as reqs
 class KortovNet(object):
     """docstring for KortovNet."""
 
-    def __init__(self, host="http://msliga.ru/api/v0"):
+    def __init__(self, host="http://msliga.ru/api/v0", token=None):
         """Init."""
         super(KortovNet, self).__init__()
         self.host = host
+        self.token = token
 
     def link_for_player(self, league, player):
         """Generate link for players page in the league."""
@@ -38,6 +39,7 @@ class KortovNet(object):
         url = "{host}/games/".format(
             host=self.host
         )
+        headers = {'Authorization': "Token {}".format(self.token)}
         return reqs.post(
             url,
             json=dict(
@@ -48,5 +50,6 @@ class KortovNet(object):
                 location=loc,
                 league=lg,
                 end_datetime=time
-            )
+            ),
+            headers=headers
         ).json()
