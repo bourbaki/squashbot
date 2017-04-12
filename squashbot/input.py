@@ -332,7 +332,7 @@ class GameInputHandler(telepot.aio.helper.ChatHandler):
                         self._admin_chat,
                         "#result\n" +
                         _("""{} has just posted new results.\n{} {}\n{} - {}\n{}""").format(
-                            name,
+                            name.replace('_', '\_'),
                             self._location,
                             self._time.format('%d.%m.%y, %H:%M'),
                             markdown_link(
