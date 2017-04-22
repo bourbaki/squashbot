@@ -12,6 +12,7 @@ from kortovnet import KortovNet
 from telepot.exception import TelegramError
 import gettext
 import os
+import redis
 
 MSK = 'Europe/Moscow'
 LOCALE = 'ru_RU'
@@ -47,7 +48,7 @@ class GameInputHandler(telepot.aio.helper.ChatHandler):
         self.players = None
         self.locations = None
         self.api = KortovNet(token=os.getenv('LIGA_TOKEN'))
-        self.league = 1010
+        self.league = 1000
         self._stage = GameInputStage.start
         # TODO: Create game class
         self._location = None
@@ -347,4 +348,7 @@ class GameInputHandler(telepot.aio.helper.ChatHandler):
                         ),
                         parse_mode='Markdown'
                     )
+                    rd = redis.from_url(os.getenv('REDIS_URL'))
+                    rd.zincrby("u:{}".format(self.chat_id), self._player1)
+                    rd.zincrby("u:{}".format(self.chat_id), self._player2)
                     self._stage = GameInputStage.start
