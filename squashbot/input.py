@@ -47,7 +47,7 @@ class GameInputHandler(telepot.aio.helper.ChatHandler):
         self.players = None
         self.locations = None
         self.api = KortovNet(token=os.getenv('LIGA_TOKEN'))
-        self.league = 1012
+        self.league = 1014
         self._stage = GameInputStage.start
         # TODO: Create game class
         self._location = None
