@@ -7,6 +7,7 @@ from fuzzywuzzy import process
 from telepot.namedtuple import ReplyKeyboardMarkup, ReplyKeyboardRemove
 from datetime import datetime
 import pendulum
+import redis
 from squashbot.utils import previous_days, grouper, markdown_link, custom_xrange as time_range
 from kortovnet import KortovNet
 from telepot.exception import TelegramError
@@ -16,7 +17,8 @@ import os
 MSK = 'Europe/Moscow'
 LOCALE = 'ru_RU'
 CHAT_MEMBERS = ['left_chat_member', 'new_chat_member']
-
+TOP_LOCS=3
+TOP_PLAYERS=3
 
 pendulum.set_locale('ru')
 localedir = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'locale')
@@ -47,7 +49,8 @@ class GameInputHandler(telepot.aio.helper.ChatHandler):
         self.players = None
         self.locations = None
         self.api = KortovNet(token=os.getenv('LIGA_TOKEN'))
-        self.league = 1014
+        self.redis = redis.StrictRedis.from_url(os.getenv("REDIS_URL"))
+        self.league = 1000
         self._stage = GameInputStage.start
         # TODO: Create game class
         self._location = None
@@ -56,7 +59,51 @@ class GameInputHandler(telepot.aio.helper.ChatHandler):
         self._player2 = None
         self._result = None
 
-    async def move_to(self, stage, keyboard=None):
+
+    def top_locations_for_user(self, user_id):
+        return [
+            "🔥" + x.decode()
+            for x in self.redis.zrevrange("loc:{}".format(user_id), 0, TOP_LOCS)
+        ]
+
+    def top_players_for_user(self, user_id):
+        return [
+            x.decode()
+            for x in self.redis.zrevrange("ps:{}".format(user_id), 0, TOP_PLAYERS)
+        ]
+
+    def get_location_keyboard_for_user(self, user_id):
+        top = self.top_locations_for_user(user_id)
+        names = None
+        
+        if len(top) == 0:
+            names = sorted(self.locations.keys())
+        else:
+            names = top + sorted([k for k in self.locations.keys() if k not in top])
+        
+        return ReplyKeyboardMarkup(
+            keyboard=grouper(names, 1),
+            one_time_keyboard=True
+        )
+
+    def get_players_keyboard_for_user(self, user_id, exclude=set()):
+        top = [p for p in self.top_players_for_user(user_id) if (p in self.players)]
+        names = None
+        if len(top) == 0:
+            names = sorted(self.players.keys())
+        else:
+            names = ["🔥" + x for x in top] + sorted([k for k in self.players.keys() if k not in top])
+
+        
+        return ReplyKeyboardMarkup(
+            keyboard=[[p] for p in names if p.replace("🔥", "") not in exclude],
+            one_time_keyboard=True
+        )
+        
+        
+        
+
+    async def move_to(self, stage, keyboard=None, user_id=None):
         """Change state of chat to a specified stage."""
         self._stage = stage
         if self._stage == GameInputStage.location:
@@ -65,9 +112,7 @@ class GameInputHandler(telepot.aio.helper.ChatHandler):
                     p['title']: p['id']
                     for p in self.api.get_locations()
                 }
-            markup = ReplyKeyboardMarkup(
-                keyboard=grouper(sorted(self.locations.keys()), 1)
-            )
+            markup = self.get_location_keyboard_for_user(user_id)
             await self.sender.sendMessage(
                 _('Hi fellow squasher! Please choose the location of the game.'),
                 reply_markup=markup
@@ -98,7 +143,8 @@ class GameInputHandler(telepot.aio.helper.ChatHandler):
                 keyboard=grouper(
                     time_strs,
                     n=3
-                )
+                ),
+                one_time_keyboard=True
             )
             await self.sender.sendMessage(
                 _('You played on {date}.\nWhat time have the game ended?').format(
@@ -122,25 +168,25 @@ class GameInputHandler(telepot.aio.helper.ChatHandler):
                     "{} {}".format(p['last_name'].strip(), p['first_name'].strip()): p['id']
                     for p in self.api.get_players(self.league)
                 }
+            print("Here", self.top_players_for_user(user_id))
             await self.sender.sendMessage(
                 _("""Nice. The game is ended at {}.\nWho's the first player?""").format(
                     self._time.diff_for_humans()
                 ),
-                reply_markup=ReplyKeyboardMarkup(keyboard=[
-                    [p] for p in sorted(self.players.keys())
-                 ])
+                reply_markup=self.get_players_keyboard_for_user(user_id)
             )
         elif self._stage == GameInputStage.second_player:
             await self.sender.sendMessage(
                 _("""Well done. We like {}.\nWho was his mathup?""").format(self._player1),
-                reply_markup=ReplyKeyboardMarkup(keyboard=[
-                    [p] for p, pid in sorted(self.players.items()) if p != self._player1
-                 ])
+                reply_markup=self.get_players_keyboard_for_user(
+                    user_id,
+                    exclude=[self._player1]
+                )
             )
         elif self._stage == GameInputStage.result:
             await self.sender.sendMessage(
                 _("""Well done.\nAnd the result of {} - {} is?""").format(self._player1, self._player2),
-                reply_markup=ReplyKeyboardMarkup(keyboard=grouper(GAME_RESULTS, 3))
+                reply_markup=ReplyKeyboardMarkup(keyboard=grouper(GAME_RESULTS, 3), one_time_keyboard=True)
             )
         elif self._stage == GameInputStage.confirmation:
             await self.sender.sendMessage(
@@ -152,7 +198,8 @@ class GameInputHandler(telepot.aio.helper.ChatHandler):
                     self._result
                 ),
                 reply_markup=ReplyKeyboardMarkup(
-                    keyboard=grouper(['OK', '/back'], 1)
+                    keyboard=grouper(['OK', '/back'], 1),
+                    one_time_keyboard=True
                 )
             )
 
@@ -194,7 +241,7 @@ class GameInputHandler(telepot.aio.helper.ChatHandler):
                 is_authorized = await self.is_authorized(user_id)
                 if is_authorized:
                     if self._stage == GameInputStage.start:
-                            await self.move_to(GameInputStage.location)
+                            await self.move_to(GameInputStage.location, user_id=user_id)
                     else:
                         await self.sender.sendMessage(
                             _('You are already in process of entering the results!')
@@ -223,9 +270,10 @@ class GameInputHandler(telepot.aio.helper.ChatHandler):
         else:
             # Basic messages
             if self._stage == GameInputStage.location:
-                text = text.strip()
+                text = text.strip().replace("🔥", "")
                 if text in self.locations:
                     self._location = text
+                    self.redis.zadd("loc:{}".format(user_id), 1, text)
                     await self.move_to(GameInputStage.date)
                 else:
                     await self.sender.sendMessage(
@@ -264,32 +312,34 @@ class GameInputHandler(telepot.aio.helper.ChatHandler):
                         )
                     else:
                         self._time = time
-                        await self.move_to(GameInputStage.first_player)
+                        await self.move_to(GameInputStage.first_player, user_id=user_id)
             elif self._stage == GameInputStage.first_player:
-                text = text.strip()
+                text = text.strip().replace("🔥", "")
                 if text not in self.players:
                     ps = process.extract(text, self.players.keys(), limit=10)
                     await self.sender.sendMessage(
                         _("""I don't know that man!!! I suggested some names for you below"""),
                         reply_markup=ReplyKeyboardMarkup(keyboard=[
                             [p] for p, _ in ps if p != self._player1
-                         ])
+                         ], one_time_keyboard=True)
                     )
                 else:
                     self._player1 = text
-                    await self.move_to(GameInputStage.second_player)
+                    self.redis.zadd("ps:{}".format(user_id), 1, text)
+                    await self.move_to(GameInputStage.second_player, user_id=user_id)
             elif self._stage == GameInputStage.second_player:
-                text = text.strip()
+                text = text.strip().replace("🔥", "")
                 if (text not in self.players) or (text == self._player1):
                     ps = process.extract(text, self.players.keys(), limit=10)
                     await self.sender.sendMessage(
                         _("""I don't know that man!!! I suggested some names for you below"""),
                         reply_markup=ReplyKeyboardMarkup(keyboard=[
                             [p] for p, _ in ps if p != self._player1
-                         ])
+                         ], one_time_keyboard=True)
                     )
                 else:
                     self._player2 = text
+                    self.redis.zadd("ps:{}".format(user_id), 1, text)
                     await self.move_to(GameInputStage.result)
             elif self._stage == GameInputStage.result:
                 text = text.strip()
@@ -330,20 +380,19 @@ class GameInputHandler(telepot.aio.helper.ChatHandler):
                     logging.debug(result)
                     await self.bot.sendMessage(
                         self._admin_chat,
-                        "#result\n" +
-                        _("""{} has just posted new results.\n{} {}\n{} - {}\n{}""").format(
-                            name.replace('_', '\_'),
-                            self._location,
-                            self._time.format('%d.%m.%y, %H:%M'),
-                            markdown_link(
+                        _("""{p1} - {p2}\n{result} {loc} {time}\n#result by {author}""").format(
+                            author=name.replace('_', '\_'),
+                            loc=self._location,
+                            time=self._time.format('%d/%m %H:%M'),
+                            p1=markdown_link(
                                 title=self._player1,
                                 url=self.api.link_for_player(self.league, self.players[self._player1])
                             ),
-                            markdown_link(
+                            p2=markdown_link(
                                 title=self._player2,
                                 url=self.api.link_for_player(self.league, self.players[self._player2])
                             ),
-                            self._result
+                            result=self._result
                         ),
                         parse_mode='Markdown'
                     )
