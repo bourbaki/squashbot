@@ -186,7 +186,7 @@ class GameInputHandler(telepot.aio.helper.ChatHandler):
         elif self._stage == GameInputStage.result:
             await self.sender.sendMessage(
                 _("""Well done.\nAnd the result of {} - {} is?""").format(self._player1, self._player2),
-                reply_markup=ReplyKeyboardMarkup(keyboard=grouper(GAME_RESULTS, 3), one_time_keyboard=True)
+                reply_markup=ReplyKeyboardMarkup(keyboard=grouper(GAME_RESULTS, 2), one_time_keyboard=True)
             )
         elif self._stage == GameInputStage.confirmation:
             await self.sender.sendMessage(
