@@ -49,9 +49,10 @@ class GameInputHandler(telepot.aio.helper.ChatHandler):
         self.players = None
         self.locations = None
         self.api = KortovNet(token=os.getenv('LIGA_TOKEN'))
-        self.redis = redis.StrictRedis.from_url(os.getenv("REDIS_URL"))
-        self.league = os.getenv('LEAGUE_ID')
+        self.redis = redis.StrictRedis.from_url(os.getenv('REDIS_URL'))
+        self.league_group_id = os.getenv('LEAGUE_GROUP_ID')
         self._stage = GameInputStage.start
+        self._league = None
         # TODO: Create game class
         self._location = None
         self._time = None
@@ -165,8 +166,9 @@ class GameInputHandler(telepot.aio.helper.ChatHandler):
         elif self._stage == GameInputStage.first_player:
             if not self.players:
                 self.players = {
-                    "{} {}".format(p['last_name'].strip(), p['first_name'].strip()): p['id']
-                    for p in self.api.get_players(self.league)
+                    "{} {}".format(p['last_name'].strip(), p['first_name'].strip()):
+                        dict(id=p['competitor_id'], league_id=p['league_id'])
+                    for p in self.api.get_all_players(self.league_group_id)
                 }
             print("Here", self.top_players_for_user(user_id))
             await self.sender.sendMessage(
@@ -325,6 +327,8 @@ class GameInputHandler(telepot.aio.helper.ChatHandler):
                     )
                 else:
                     self._player1 = text
+                    self._league = self.players[self._player1]['league_id']
+                    self.players = {k: v for k, v in self.players.items() if v['league_id'] == self._league}
                     self.redis.zadd("ps:{}".format(user_id), 1, text)
                     await self.move_to(GameInputStage.second_player, user_id=user_id)
             elif self._stage == GameInputStage.second_player:
@@ -367,9 +371,9 @@ class GameInputHandler(telepot.aio.helper.ChatHandler):
                         "@{}".format(from_data['username']) if 'username' in from_data else from_data['first_name']
                     r1, r2 = [int(x) for x in self._result.split(':')]
                     data = dict(
-                        lg=self.league,
-                        p1=self.players[self._player1],
-                        p2=self.players[self._player2],
+                        lg=self._league,
+                        p1=self.players[self._player1]['id'],
+                        p2=self.players[self._player2]['id'],
                         r1=r1,
                         r2=r2,
                         loc=self.locations[self._location],
@@ -386,11 +390,11 @@ class GameInputHandler(telepot.aio.helper.ChatHandler):
                             time=self._time.format('%d/%m %H:%M'),
                             p1=markdown_link(
                                 title=self._player1,
-                                url=self.api.link_for_player(self.league, self.players[self._player1])
+                                url=self.api.link_for_player(self._league, self.players[self._player1]['id'])
                             ),
                             p2=markdown_link(
                                 title=self._player2,
-                                url=self.api.link_for_player(self.league, self.players[self._player2])
+                                url=self.api.link_for_player(self._league, self.players[self._player2]['id'])
                             ),
                             result=self._result
                         ),
