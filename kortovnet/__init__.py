@@ -28,6 +28,20 @@ class KortovNet(object):
             league_id=league_id
         )).json()
 
+    def get_all_players(self, league_group_id):
+        """Return full player list for specified league group."""
+        return reqs.get("{host}/groups/{league_group_id}/players/".format(
+            host=self.host,
+            league_group_id=league_group_id
+        )).json()
+
+    def get_player_league(self, player_id):
+        """Return league for specified player."""
+        return reqs.get("{host}/players/{player_id}/league/".format(
+            host=self.host,
+            player_id=player_id
+        )).json()
+
     def get_locations(self):
         """Return list of available locations."""
         return reqs.get("{host}/locations/".format(
