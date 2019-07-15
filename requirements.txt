@@ -1,6 +1,6 @@
 fuzzywuzzy==0.14.0
 pendulum==1.1.0
-requests==2.12.3
+requests==2.20.0
 telepot==12.6
 aioredis==0.2.9
 hiredis==0.2.0
