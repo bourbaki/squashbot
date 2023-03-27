@@ -4,4 +4,4 @@ requests==2.20.0
 telepot==12.6
 aioredis==0.2.9
 hiredis==0.2.0
-redis==2.10.6
+redis==4.3.6
